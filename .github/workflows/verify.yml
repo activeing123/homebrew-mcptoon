@@ -16,7 +16,7 @@ jobs:
         shell: bash
         run: |
           set -euxo pipefail
-          brew tap activeing123/mcptoon "file://$(pwd)"
+          brew tap activeing123/mcptoon
           brew install activeing123/mcptoon/mcptoon
           brew test activeing123/mcptoon/mcptoon
           brew audit --strict activeing123/mcptoon/mcptoon || true
