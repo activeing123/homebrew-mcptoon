@@ -1,0 +1,25 @@
+name: Verify
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  install:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: Homebrew/actions/setup-homebrew@master
+      - name: Install from tap layout and self-test
+        shell: bash
+        run: |
+          set -euxo pipefail
+          tap="$(brew --repository)/Library/Taps/activeing123/homebrew-mcptoon"
+          mkdir -p "$(dirname "$tap")"
+          cp -r "$(pwd)" "$tap"
+          brew install activeing123/mcptoon/mcptoon
+          brew test activeing123/mcptoon/mcptoon
+          brew audit --strict activeing123/mcptoon/mcptoon || true
+          mcptoon --version
