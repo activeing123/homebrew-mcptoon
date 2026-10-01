@@ -25,6 +25,9 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # 每天会真去推 formula，浅克隆会让后续 push 因 non-fast-forward 被拒
+          fetch-depth: 0
 
       - name: Check drift
         id: check
@@ -46,9 +49,12 @@ jobs:
             --target "${{ github.event.inputs.version || 'auto' }}" \
             --commit --push
 
-      - name: Fail loudly if formula ended up not matching PyPI
+      - name: Fail loudly if formula ended up not matching the intended target
         run: |
           set -euo pipefail
-          python3 scripts/bump_formula.py --check --target auto | tee /tmp/post.txt
-          grep -q '^IN-SYNC' /tmp/post.txt || { echo "::error::formula 仍与 PyPI 不一致"; exit 1; }
-          echo "✅ formula 与 PyPI 一致"
+          # ⚠️ 必须跟**本次的目标**比，不是永远跟 PyPI 比。
+          #    手动 dispatch 钉某个版本时，用 auto 比会必然误红（那是断言写错，不是漂移）。
+          python3 scripts/bump_formula.py --check \
+            --target "${{ github.event.inputs.version || 'auto' }}" | tee /tmp/post.txt
+          grep -q '^IN-SYNC' /tmp/post.txt || { echo "::error::formula 与目标版本不一致"; exit 1; }
+          echo "✅ formula 与目标一致"
