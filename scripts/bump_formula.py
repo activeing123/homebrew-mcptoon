@@ -85,8 +85,25 @@ def rewrite(formula: Path, version: str) -> tuple[bool, str]:
 
 
 def git(*args, cwd: Path, env=None, check=True):
-    return subprocess.run(["git", "-C", str(cwd), *args], capture_output=True,
-                          text=True, encoding="utf-8", errors="replace", env=env, check=check)
+    """跑 git。失败时**把 stderr 一起抛出来** —— 曾经 capture_output 把
+    'Please tell me who you are' 吞掉，只剩一个 exit 128，排查多花了一整轮。"""
+    r = subprocess.run(["git", "-C", str(cwd), *args], capture_output=True,
+                       text=True, encoding="utf-8", errors="replace", env=env, check=False)
+    if check and r.returncode != 0:
+        raise RuntimeError(
+            f"git {' '.join(args)} 失败 rc={r.returncode}\n"
+            f"stdout: {(r.stdout or '').strip()[:300]}\n"
+            f"stderr: {(r.stderr or '').strip()[:300]}")
+    return r
+
+
+def ensure_identity(repo: Path) -> None:
+    """CI runner 没有全局 git 身份 ⇒ `git commit` 直接 128。
+    只在**确实没配**时才补 bot 身份，本机已有的真人身份不动。"""
+    if not (git("config", "user.email", cwd=repo, check=False).stdout or "").strip():
+        git("config", "user.name", "github-actions[bot]", cwd=repo)
+        git("config", "user.email", "github-actions[bot]@users.noreply.github.com", cwd=repo)
+        print("  (未检测到 git 身份，已临时设为 github-actions[bot])")
 
 
 def main() -> int:
@@ -118,11 +135,13 @@ def main() -> int:
     if not a.commit:
         return 0
 
-    git("add", str(formula), cwd=formula.parent.parent)
-    git("commit", "-m", f"mcptoon -> {target} (auto-bump)", cwd=formula.parent.parent)
+    repo = formula.parent.parent
+    ensure_identity(repo)
+    git("add", str(formula), cwd=repo)
+    git("commit", "-m", f"mcptoon -> {target} (auto-bump)", cwd=repo)
     if a.push:
-        git("push", "origin", "HEAD", cwd=formula.parent.parent)
-        print(f"✅ 已推 origin/{git('rev-parse','--abbrev-ref','HEAD',cwd=formula.parent.parent).stdout.strip()}")
+        git("push", "origin", "HEAD", cwd=repo)
+        print(f"✅ 已推 origin/{git('rev-parse','--abbrev-ref','HEAD',cwd=repo).stdout.strip()}")
     return 0
 
 
