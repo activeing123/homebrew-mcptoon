@@ -1,0 +1,54 @@
+name: Auto-bump formula
+# 存在理由（2026-10-01 血泪）：Homebrew tap 是**纯手写文件**，不在 publish-mcp.yml 的
+# 链路里、也不在 numtide bot 的监控里 ⇒ 「发版五件套」天然漏掉它，**漏了零报错**。
+# 实测 09-25 的 0.8.1 一直漂到 10-01 才被发现，落后 4 版（0.8.2/0.8.3/0.8.4/0.8.5）。
+# ⇒ 这里用每天一次的 cron 把「记得手动 bump」这条人类义务，直接从记忆里删掉。
+on:
+  schedule:
+    - cron: '23 4 * * *'   # UTC 每天一次
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '要顶到的版本；留空 = 自动取 PyPI 最新'
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: tap-auto-bump
+  cancel-in-progress: false
+
+jobs:
+  bump:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check drift
+        id: check
+        run: |
+          set -euo pipefail
+          python3 scripts/bump_formula.py --check \
+            --target "${{ github.event.inputs.version || 'auto' }}" | tee /tmp/chk.txt
+          if grep -q '^IN-SYNC' /tmp/chk.txt; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true"  >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Bump, verify, commit, push
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          set -euo pipefail
+          python3 scripts/bump_formula.py \
+            --target "${{ github.event.inputs.version || 'auto' }}" \
+            --commit --push
+
+      - name: Fail loudly if formula ended up not matching PyPI
+        run: |
+          set -euo pipefail
+          python3 scripts/bump_formula.py --check --target auto | tee /tmp/post.txt
+          grep -q '^IN-SYNC' /tmp/post.txt || { echo "::error::formula 仍与 PyPI 不一致"; exit 1; }
+          echo "✅ formula 与 PyPI 一致"
