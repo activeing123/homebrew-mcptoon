@@ -5,7 +5,11 @@ name: Auto-bump formula
 # ⇒ 这里用每天一次的 cron 把「记得手动 bump」这条人类义务，直接从记忆里删掉。
 on:
   schedule:
-    - cron: '23 4 * * *'   # UTC 每天一次
+    - cron: '23 */6 * * *'   # UTC 每 6 小时一次
+    # 2026-10-02：原为 '23 4 * * *'（每天一次）。实测 workflow 建好 19.6 小时后
+    # schedule 事件仍为 0 次（跨过 04:23Z 那次触发点）。GitHub 的 scheduled
+    # workflow 允许延迟/丢拍，每天只给一次机会时，丢一拍就要等一整天。
+    # 改成每 6 小时 4 次机会，单次丢拍代价从 24h 降到 6h。
   workflow_dispatch:
     inputs:
       version:
