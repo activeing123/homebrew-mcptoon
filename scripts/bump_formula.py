@@ -38,7 +38,16 @@ CUR_VER = re.compile(r"tags/v(\d+\.\d+\.\d+)\.tar\.gz")
 
 
 def fetch_text(url: str, timeout: int = 300) -> bytes:
-    op = urllib.request.build_opener(urllib.request.ProxyHandler({}))
+    """下载 url。代理**按环境自动走**，不硬写 no-proxy。
+
+    这里原来写的是 `ProxyHandler({})`（强制直连）。在 CI runner 上没问题——它有
+    直连公网；但在本机（发布机）上，全局 `ALL_PROXY=socks5://127.0.0.1:7897` 是
+    出网的前提，直连 `codeload.github.com` 会被对端断开（实测 19.5s 后
+    `RemoteDisconnected`），于是 release_sync 的「自动修 Homebrew」这一步永远失败、
+    exit 2 永远挂着。改成 `ProxyHandler()`：读 HTTPS_PROXY/HTTP_PROXY，设了就生效，
+    没设就直连（CI 行为不变）。
+    """
+    op = urllib.request.build_opener(urllib.request.ProxyHandler())
     with op.open(urllib.request.Request(url, headers=UA), timeout=timeout) as r:
         return r.read()
 
