@@ -140,7 +140,11 @@ def main() -> int:
     ok, msg = rewrite(formula, target)
     print(msg)
     if not ok:
-        return 1
+        # "已是 <target>，无需改" 是**成功**，不是失败：调用方
+        # （release_sync.fix_homebrew）把 rc!=0 当阻塞项，于是「tap 已经追平」
+        # 会被记成 🔴 阻塞、exit 2 —— 一个永远还不了的红灯，下次真漂了就没人信了。
+        # 只有真正的写失败（ANCHOR 缺失 / 写回校验失败）才 return 1。
+        return 0 if msg.startswith("已是") else 1
     if not a.commit:
         return 0
 
