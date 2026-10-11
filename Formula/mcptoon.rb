@@ -3,8 +3,8 @@ class Mcptoon < Formula
 
   desc "MCP client and token-efficient tool manifest layer for AI agents"
   homepage "https://github.com/activeing123/mcptoon"
-  url "https://github.com/activeing123/mcptoon/archive/refs/tags/v0.8.16.tar.gz"
-  sha256 "e45ab59b8b0158d9f1a4872d6ead743b0ea720a65a54e5670bde5015b0ae4f6f"
+  url "https://github.com/activeing123/mcptoon/archive/refs/tags/v0.8.17.tar.gz"
+  sha256 "60231464ec28ed51a8d3d7a58c0015261cdbb588d7d1ae7016ecfc5bf7fad031"
   license "Apache-2.0"
 
   depends_on "python@3.13"
